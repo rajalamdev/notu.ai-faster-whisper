@@ -1,0 +1,46 @@
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+temp_outputs/
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Model cache (Faster-Whisper downloads models here)
+.cache/
+models/
+
+# Audio test files
+*.mp3
+*.wav
+*.m4a
+*.flac
+!test_audio.mp3
