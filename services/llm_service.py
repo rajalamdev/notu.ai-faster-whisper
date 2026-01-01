@@ -83,7 +83,7 @@ Hanya kembalikan JSON, tanpa penjelasan tambahan. PASTIKAN semua field diisi den
 
 Transkripsi:
 """ + transcript_text
-        model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-exp:free")
+        model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it:free")
         referer = os.getenv("APP_REFERER", "http://localhost:3000")
         app_title = os.getenv("APP_TITLE", "Notu.ai")
 

@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from routes.transcription_routes import transcription_bp
+from routes.chat_routes import chat_bp
 from services.transcription_service import TranscriptionService
 
 load_dotenv()
@@ -12,6 +13,7 @@ CORS(app)
 
 # Register Blueprints
 app.register_blueprint(transcription_bp)
+app.register_blueprint(chat_bp)
 
 # Preload Model at Startup
 try:
