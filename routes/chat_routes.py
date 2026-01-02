@@ -38,9 +38,28 @@ def chat_completion():
             }), 503
         
         # Call OpenRouter
-        model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it:free")
+        model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-exp:free")
         referer = os.getenv("APP_REFERER", "http://localhost:3000")
         app_title = os.getenv("APP_TITLE", "Notu.ai")
+        
+        # Fix for Gemma models: They don't support system messages
+        # Convert system message to user message by prepending to first user message
+        processed_messages = []
+        system_content = None
+        
+        for msg in messages:
+            if msg.get('role') == 'system':
+                system_content = msg.get('content', '')
+            else:
+                if system_content and msg.get('role') == 'user' and not processed_messages:
+                    # Prepend system content to first user message
+                    processed_messages.append({
+                        'role': 'user',
+                        'content': f"{system_content}\n\n{msg.get('content', '')}"
+                    })
+                    system_content = None  # Clear after using
+                else:
+                    processed_messages.append(msg)
         
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -52,7 +71,7 @@ def chat_completion():
             },
             json={
                 "model": model,
-                "messages": messages,
+                "messages": processed_messages,
                 "max_tokens": max_tokens,
             },
             timeout=60

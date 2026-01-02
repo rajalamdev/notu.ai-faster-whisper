@@ -3,6 +3,7 @@ import json
 import requests
 from dotenv import load_dotenv
 import dateparser
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 try:
     from pydantic import BaseModel, Field, ValidationError
@@ -83,7 +84,7 @@ Hanya kembalikan JSON, tanpa penjelasan tambahan. PASTIKAN semua field diisi den
 
 Transkripsi:
 """ + transcript_text
-        model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it:free")
+        model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-exp:free")
         referer = os.getenv("APP_REFERER", "http://localhost:3000")
         app_title = os.getenv("APP_TITLE", "Notu.ai")
 
@@ -192,10 +193,46 @@ Transkripsi:
             parsed_iso = None
             if due_raw:
                 try:
-                    # Try parsing with dateparser using Indonesian locale first
-                    parsed = dateparser.parse(str(due_raw), languages=['id'])
+                    # Try parsing with dateparser using Indonesian locale and additional settings
+                    parsed = dateparser.parse(
+                        str(due_raw), 
+                        languages=['id', 'en'],
+                        settings={
+                            'PREFER_DATES_FROM': 'future',
+                            'RELATIVE_BASE': datetime.now(),
+                            'RETURN_AS_TIMEZONE_AWARE': False,
+                            'DATE_ORDER': 'DMY'  # Indonesian date format
+                        }
+                    )
                     if parsed:
                         parsed_iso = parsed.date().isoformat()
+                    else:
+                        # Fallback: try common Indonesian date patterns manually
+                        from datetime import datetime, timedelta
+                        import re
+                        
+                        # Handle relative dates in Indonesian
+                        lower_due = str(due_raw).lower().strip()
+                        if 'besok' in lower_due:
+                            parsed_iso = (datetime.now().date() + timedelta(days=1)).isoformat()
+                        elif 'lusa' in lower_due:
+                            parsed_iso = (datetime.now().date() + timedelta(days=2)).isoformat()
+                        elif 'minggu depan' in lower_due or 'seminggu' in lower_due:
+                            parsed_iso = (datetime.now().date() + timedelta(days=7)).isoformat()
+                        elif 'bulan depan' in lower_due or 'sebulan' in lower_due:
+                            parsed_iso = (datetime.now().date() + timedelta(days=30)).isoformat()
+                        elif re.match(r'\d+ (hari|minggu|bulan)', lower_due):
+                            # Handle "3 hari", "2 minggu", etc.
+                            match = re.match(r'(\d+)\s*(hari|minggu|bulan)', lower_due)
+                            if match:
+                                num, unit = match.groups()
+                                num = int(num)
+                                if unit == 'hari':
+                                    parsed_iso = (datetime.now().date() + timedelta(days=num)).isoformat()
+                                elif unit == 'minggu':
+                                    parsed_iso = (datetime.now().date() + timedelta(weeks=num)).isoformat()
+                                elif unit == 'bulan':
+                                    parsed_iso = (datetime.now().date() + timedelta(days=num*30)).isoformat()
                 except Exception:
                     parsed_iso = None
 
