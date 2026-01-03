@@ -39,8 +39,59 @@ def auto_detect_speakers(features, min_speakers=2, max_speakers=6):
 
 def perform_simple_diarization(audio_path, segments, num_speakers=None):
     """
-    Perform simple speaker diarization using audio features + KMeans clustering
+    Perform simple speaker diarization using audio features + KMeans clustering.
+    
+    Args:
+        audio_path: Path to WAV audio file
+        segments: List of segment objects or dicts with start, end, text
+        num_speakers: Number of speakers (None for auto-detect)
+    
+    Returns:
+        dict with keys: segments, speaker_timeline, num_speakers, method
     """
+    # Convert dicts to simple objects if needed
+    class SegmentWrapper:
+        def __init__(self, data):
+            if isinstance(data, dict):
+                self.start = data.get('start', 0)
+                self.end = data.get('end', 0)
+                self.text = data.get('text', '')
+                self.speaker = data.get('speaker', 'SPEAKER_0')
+                self._is_dict = True
+            else:
+                self.start = getattr(data, 'start', 0)
+                self.end = getattr(data, 'end', 0)
+                self.text = getattr(data, 'text', '')
+                self.speaker = getattr(data, 'speaker', 'SPEAKER_0')
+                self._is_dict = False
+    
+    wrapped_segments = [SegmentWrapper(s) for s in segments]
+    
+    def build_result(segs, n_speakers, method="mfcc_clustering"):
+        """Build the result dict from wrapped segments"""
+        result_segments = []
+        speaker_timeline = []
+        
+        for seg in segs:
+            result_segments.append({
+                "start": seg.start,
+                "end": seg.end,
+                "text": seg.text,
+                "speaker": seg.speaker,
+            })
+            speaker_timeline.append({
+                "speaker": seg.speaker,
+                "start": seg.start,
+                "end": seg.end,
+            })
+        
+        return {
+            "segments": result_segments,
+            "speaker_timeline": speaker_timeline,
+            "num_speakers": n_speakers,
+            "method": method,
+        }
+    
     try:
         # Load audio file
         with wave.open(audio_path, 'rb') as wf:
@@ -60,7 +111,7 @@ def perform_simple_diarization(audio_path, segments, num_speakers=None):
         features = []
         valid_segments = []
         
-        for seg in segments:
+        for seg in wrapped_segments:
             start_sample = int(seg.start * sample_rate)
             end_sample = int(seg.end * sample_rate)
             
@@ -78,9 +129,9 @@ def perform_simple_diarization(audio_path, segments, num_speakers=None):
         
         if len(features) < 2:
             # Not enough segments for clustering
-            for seg in segments:
+            for seg in wrapped_segments:
                 seg.speaker = "SPEAKER_0"
-            return segments, 1, {}
+            return build_result(wrapped_segments, 1, "single_speaker")
         
         # Convert to numpy array and normalize
         features = np.array(features)
@@ -97,9 +148,9 @@ def perform_simple_diarization(audio_path, segments, num_speakers=None):
         
         # Skip clustering if n_clusters is 0 or 1
         if n_clusters <= 1:
-            for seg in segments:
+            for seg in wrapped_segments:
                 seg.speaker = "SPEAKER_0"
-            return segments, 1, {}
+            return build_result(wrapped_segments, 1, "single_speaker")
         
         # Perform KMeans clustering
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -107,7 +158,7 @@ def perform_simple_diarization(audio_path, segments, num_speakers=None):
         
         # Assign speaker labels to segments
         label_idx = 0
-        for seg in segments:
+        for seg in wrapped_segments:
             if label_idx < len(valid_segments) and seg.start == valid_segments[label_idx].start:
                 seg.speaker = f"SPEAKER_{labels[label_idx]}"
                 label_idx += 1
@@ -115,11 +166,11 @@ def perform_simple_diarization(audio_path, segments, num_speakers=None):
                 # For skipped short segments, assign to previous speaker
                 seg.speaker = f"SPEAKER_{labels[min(label_idx-1, len(labels)-1)] if label_idx > 0 else 0}"
         
-        return segments, n_clusters, scores
+        return build_result(wrapped_segments, n_clusters)
         
     except Exception as e:
         print(f"⚠️ Diarization error: {str(e)}")
         # Fallback: assign all to single speaker
-        for seg in segments:
+        for seg in wrapped_segments:
             seg.speaker = "SPEAKER_0"
-        return segments, 1, {}
+        return build_result(wrapped_segments, 1, "fallback")

@@ -245,8 +245,8 @@ Transkripsi:
                 "priority": ai.get("priority", "medium"),
                 "status": ai.get("status", "todo"),
                 "labels": ai.get("labels", []),
-                "dueDate": parsed_iso,
-                "dueDateRaw": due_raw,
+                # Use parsed ISO date if available, otherwise use raw date string (may already be ISO format)
+                "dueDate": parsed_iso if parsed_iso else due_raw,
             }
             normalized_items.append(normalized)
 

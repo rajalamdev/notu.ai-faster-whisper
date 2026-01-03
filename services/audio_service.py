@@ -123,6 +123,45 @@ def convert_to_wav(input_path, output_path):
         if output:
             output.close()
 
+
+def convert_to_wav_ffmpeg(input_path, output_path):
+    """
+    Convert audio to WAV using ffmpeg subprocess.
+    More robust for handling partial/malformed webm chunks from MediaRecorder.
+    Falls back to PyAV if ffmpeg is not available.
+    """
+    try:
+        result = subprocess.run(
+            [
+                'ffmpeg', '-y', '-i', input_path,
+                '-acodec', 'pcm_s16le',
+                '-ar', '16000',
+                '-ac', '1',
+                '-f', 'wav',
+                output_path
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0 and os.path.exists(output_path):
+            return True
+        else:
+            print(f"⚠️ FFmpeg conversion failed: {result.stderr[:200] if result.stderr else 'Unknown error'}")
+            # Fallback to PyAV
+            return convert_to_wav(input_path, output_path)
+            
+    except FileNotFoundError:
+        print("⚠️ FFmpeg not found in PATH, trying PyAV...")
+        return convert_to_wav(input_path, output_path)
+    except subprocess.TimeoutExpired:
+        print("⚠️ FFmpeg conversion timed out, trying PyAV...")
+        return convert_to_wav(input_path, output_path)
+    except Exception as e:
+        print(f"⚠️ FFmpeg conversion error: {e}, trying PyAV...")
+        return convert_to_wav(input_path, output_path)
+
 try:
     from python_speech_features import mfcc
 except ImportError:
