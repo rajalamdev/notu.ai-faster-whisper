@@ -49,6 +49,7 @@ Tugasmu adalah membuat notulensi rapat dalam bahasa Indonesia berdasarkan transk
        • Contoh benar: "highlights": { "Topik A": "- Poin 1\\n- Poin 2", "Topik B": "Paragraf penjelasan." }
    - Action Items → daftar tugas (Array of Objects).
        • Wajib: title, description (detail), priority (low/medium/high/urgent).
+       • dueDate: PENTING! Ekstrak tanggal deadline dari konteks transkrip. Jika disebutkan tanggal (misal "14 Oktober", "minggu depan", "3 hari lagi"), konversi ke format ISO YYYY-MM-DD. Jika tidak ada tanggal, isi null.
        • Assignee: selalu null. Labels: array string. Status: "todo".
        • Hint: Hanya catat tugas yang jelas dan actionable. Jangan mencatat hal sepele.
    - Conclusion → penutup rapat (Markdown).
@@ -84,7 +85,7 @@ Hanya kembalikan JSON, tanpa penjelasan tambahan. PASTIKAN semua field diisi den
 
 Transkripsi:
 """ + transcript_text
-        model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-exp:free")
+        model = os.getenv("LLM_MODEL", "google/gemma-3-27b-it:free")
         referer = os.getenv("APP_REFERER", "http://localhost:3000")
         app_title = os.getenv("APP_TITLE", "Notu.ai")
 

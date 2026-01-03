@@ -1,6 +1,80 @@
 import av
 import numpy as np
 import os
+import wave
+import subprocess
+from typing import Tuple
+
+def get_audio_duration_from_file(file_path: str) -> float:
+    """
+    Get duration of audio/video file in seconds.
+    Works with any format supported by PyAV.
+    Falls back to ffprobe if PyAV fails.
+    """
+    duration = 0
+    
+    # Method 1: Try PyAV
+    try:
+        container = av.open(file_path)
+        duration = container.duration / av.time_base if container.duration else 0
+        # If duration is 0, try to get from audio stream
+        if duration == 0 or duration < 1:
+            for stream in container.streams.audio:
+                if stream.duration:
+                    stream_duration = float(stream.duration * stream.time_base)
+                    if stream_duration > duration:
+                        duration = stream_duration
+                        break
+            # Also try video stream for video files
+            if duration == 0 or duration < 1:
+                for stream in container.streams.video:
+                    if stream.duration:
+                        stream_duration = float(stream.duration * stream.time_base)
+                        if stream_duration > duration:
+                            duration = stream_duration
+                            break
+        container.close()
+        
+        if duration > 1:
+            return duration
+    except Exception as e:
+        print(f"⚠️ PyAV error getting duration: {e}")
+    
+    # Method 2: Fallback to ffprobe
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.stdout.strip():
+            ffprobe_duration = float(result.stdout.strip())
+            if ffprobe_duration > 0:
+                print(f"✓ Duration from ffprobe: {ffprobe_duration}s")
+                return ffprobe_duration
+    except Exception as e:
+        print(f"⚠️ ffprobe fallback error: {e}")
+    
+    # Return whatever we got from PyAV, even if 0
+    return duration
+
+
+def get_wav_info(wav_path: str) -> Tuple[int, int, float]:
+    """
+    Get WAV file info: sample_rate, num_channels, duration
+    """
+    try:
+        with wave.open(wav_path, 'rb') as wav:
+            sample_rate = wav.getframerate()
+            channels = wav.getnchannels()
+            frames = wav.getnframes()
+            duration = frames / sample_rate
+            return sample_rate, channels, duration
+    except Exception as e:
+        print(f"⚠️ Error reading WAV info: {e}")
+        return 16000, 1, 0
+
 
 def convert_to_wav(input_path, output_path):
     """Convert any audio/video to WAV using PyAV"""
